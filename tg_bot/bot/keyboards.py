@@ -26,6 +26,15 @@ back_to_menu_project.add(types.InlineKeyboardButton(text="К главному м
                                                     callback_data="К главному меню"))
 
 
+back_to_menu_vacancy = types.InlineKeyboardMarkup()
+back_to_menu_vacancy.add(types.InlineKeyboardButton(text="К выбору проекта для вакансии",
+                                                    callback_data="К выбору проекта для вакансии"))
+back_to_menu_vacancy.add(types.InlineKeyboardButton(text="Назад, к работе с вакансиями",
+                                                    callback_data="Назад, к работе с вакансиями"))
+back_to_menu_vacancy.add(types.InlineKeyboardButton(text="К главному меню",
+                                                    callback_data="К главному меню"))
+
+
 keyboard_work_with_CV = types.InlineKeyboardMarkup()
 keyboard_work_with_CV.add(types.InlineKeyboardButton(text="Добавить резюме",
                                                      callback_data="Добавить резюме"))

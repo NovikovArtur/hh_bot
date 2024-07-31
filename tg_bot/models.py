@@ -54,7 +54,8 @@ class ProjectModel(TimeStampedMixin):
 
 
 class VacancyModel(TimeStampedMixin):
-    project_id = models.ForeignKey('ProjectModel', on_delete=models.CASCADE)
+    project_name = models.ForeignKey('ProjectModel', on_delete=models.CASCADE)
+    user_id = models.ForeignKey('UserModel', on_delete=models.CASCADE)
     vacancy_name = models.TextField(verbose_name="Название вакансии проекта")
     vacancy_text = models.TextField(verbose_name="Текст вакансии проекта")
 

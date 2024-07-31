@@ -55,11 +55,6 @@ def work_with_cv(callback):
                          "В этом разделе ты можешь сделать различные вещи с твоим проектом "
                          "или добавить новый",
                          reply_markup=keyboard_work_with_project)
-    else:
-        bot.send_message(callback.message.chat.id,
-                         "В этом разделе ты можешь сделать различные вещи с твоими вакансиями в проектах "
-                         "или добавить новые",
-                         reply_markup=keyboard_work_with_vacancy)
     bot.set_state(callback.from_user.id, HH.look_all_smth, callback.message.chat.id)
 
 
@@ -206,7 +201,7 @@ def wait_click_on_smth_name(callback: types.CallbackQuery):
     answer = str(callback.data)
     if answer == 'К главному меню':
         main_menu(callback)
-    if answer == 'Назад, к работе с резюме':
+    if answer == 'Назад, к работе с резюме' or answer == 'Назад, к работе с проектами':
         work_with_cv(callback)
     else:
         from_where = UserModel.objects.get(user_id=callback.from_user.id).from_where
@@ -240,7 +235,8 @@ def wait_click_on_smth_name(callback: types.CallbackQuery):
             user = UserModel.objects.get(user_id=callback.from_user.id)
             user.answer = answer
             user.save()
-            cv = CvModel.objects.get(user_id__user_id=callback.from_user.id)
+            cv = CvModel.objects.get(user_id__user_id=callback.from_user.id,
+                                     cv_name=answer)
             cv.delete()
             user = UserModel.objects.get(user_id=callback.from_user.id)
             user.from_where = 'Добавить резюме'
@@ -252,7 +248,8 @@ def wait_click_on_smth_name(callback: types.CallbackQuery):
             user = UserModel.objects.get(user_id=callback.from_user.id)
             user.answer = answer
             user.save()
-            project = ProjectModel.objects.get(user_id__user_id=callback.from_user.id)
+            project = ProjectModel.objects.get(user_id__user_id=callback.from_user.id,
+                                               project_name=answer)
             project.delete()
             user = UserModel.objects.get(user_id=callback.from_user.id)
             user.from_where = 'Добавить проект'
@@ -260,3 +257,195 @@ def wait_click_on_smth_name(callback: types.CallbackQuery):
             bot.send_message(callback.message.chat.id,
                              f"Введите новое описание вашего проекта {answer}")
             bot.set_state(callback.from_user.id, HH.wait_description_smth, callback.message.chat.id)
+
+
+@bot.callback_query_handler(lambda callback: callback.data in TEXT.work_with_vacancy)
+def choose_project_for_vacancy(callback):
+    bot.edit_message_reply_markup(chat_id=callback.message.chat.id,
+                                  message_id=callback.message.message_id,
+                                  reply_markup=None)
+    bot.delete_state(callback.from_user.id, callback.message.chat.id)
+    bull = smth_bull(callback, 'Посмотреть свои проекты')
+    if bull:
+        keyboard_cv_read = types.InlineKeyboardMarkup()
+        names_project = ProjectModel.objects.filter(user_id__user_id=callback.from_user.id)
+        names_project_name = [name_project.project_name for name_project in names_project]
+        for name_project in names_project_name:
+            keyboard_cv_read.add(types.InlineKeyboardButton(text=name_project,
+                                                            callback_data=name_project))
+        keyboard_cv_read.add(types.InlineKeyboardButton(text="К главному меню",
+                                                        callback_data="К главному меню"))
+        bot.send_message(callback.message.chat.id,
+                         "Выберите проект в который хотите добавить вакансии:",
+                         reply_markup=keyboard_cv_read)
+        bot.set_state(callback.from_user.id, HH.wait_choose_project, callback.message.chat.id)
+    else:
+        bot.send_message(callback.message.chat.id,
+                         "У вас пока нет проекта",
+                         reply_markup=back_to_menu_total)
+
+
+@bot.callback_query_handler(lambda callback: True, state=HH.wait_choose_project)
+def base_vacancy(callback):
+    bot.edit_message_reply_markup(chat_id=callback.message.chat.id,
+                                  message_id=callback.message.message_id,
+                                  reply_markup=None)
+    bot.delete_state(callback.from_user.id, callback.message.chat.id)
+    from_where = str(callback.data)
+    user = UserModel.objects.get(user_id=callback.from_user.id)
+    user.from_where = from_where
+    user.save()
+    bot.send_message(callback.message.chat.id,
+                     f"В этом разделе вы можете взаимодействовать с вакансиями в проекте {from_where}",
+                     reply_markup=keyboard_work_with_vacancy)
+    bot.set_state(callback.from_user.id, HH.look_all_vacancy, callback.message.chat.id)
+
+
+@bot.callback_query_handler(lambda callback: callback.data in "Назад, к работе с вакансиями")
+def base_vacancy2(callback):
+    bot.edit_message_reply_markup(chat_id=callback.message.chat.id,
+                                  message_id=callback.message.message_id,
+                                  reply_markup=None)
+    bot.delete_state(callback.from_user.id, callback.message.chat.id)
+    from_where = UserModel.objects.get(user_id=callback.from_user.id).from_where
+    bot.send_message(callback.message.chat.id,
+                     f"В этом разделе вы можете взаимодействовать с вакансиями в проекте {from_where}",
+                     reply_markup=keyboard_work_with_vacancy)
+    bot.set_state(callback.from_user.id, HH.look_all_vacancy, callback.message.chat.id)
+
+
+@bot.callback_query_handler(lambda callback: callback.data in TEXT.vacancy_create,
+                            state=HH.look_all_vacancy)
+def vacancy_create(callback):
+    bot.edit_message_reply_markup(chat_id=callback.message.chat.id,
+                                  message_id=callback.message.message_id,
+                                  reply_markup=None)
+    bot.delete_state(callback.from_user.id, callback.message.chat.id)
+    bot.send_message(callback.message.chat.id,
+                     "Введите название вакансии.\n\nВАЖНО: по названию вакансии будет осуществляться "
+                     "поиск подходящих вам кандидатов, поэтому стоит писать название профессии.",
+                     reply_markup=back_to_menu_vacancy)
+    bot.set_state(callback.from_user.id, HH.wait_name_vacancy, callback.message.chat.id)
+
+
+@bot.message_handler(state=HH.wait_name_vacancy)
+def wait_name_vacancy(message: types.Message):
+    from_where = UserModel.objects.get(user_id=message.from_user.id).from_where
+    try:
+        VacancyModel.objects.get(project_name__project_name=from_where,
+                                 user_id__user_id=message.from_user.id,
+                                 vacancy_name=str(message.text))
+        bot.send_message(message.chat.id,
+                         f"Название вакансии {str(message.text)} уже есть. Пожалуйста, "
+                         f"удалите или отредактируйте имеющуюся вакансию с таким названием, "
+                         f"или выберите другое название для вакансии.",
+                         reply_markup=back_to_menu_vacancy)
+    except:
+        answer = str(message.text)
+        user = UserModel.objects.get(user_id=message.from_user.id)
+        user.answer = answer
+        user.save()
+        bot.send_message(message.chat.id,
+                         f"Название вакансии {answer} в проекте {from_where}\nВведите описание вашей вакансии.")
+        bot.set_state(message.from_user.id, HH.wait_description_vacancy, message.chat.id)
+
+
+@bot.message_handler(state=HH.wait_description_vacancy)
+def wait_description_vacancy(message: types.Message):
+    name_vacancy = UserModel.objects.get(user_id=message.from_user.id).answer
+    from_where = UserModel.objects.get(user_id=message.from_user.id).from_where
+    vacancy = VacancyModel()
+    vacancy.project_name = ProjectModel.objects.get(project_name=from_where,
+                                                    user_id__user_id=message.from_user.id)
+    vacancy.vacancy_name = name_vacancy
+    vacancy.vacancy_text = message.text
+    vacancy.user_id = UserModel.objects.get(user_id=message.from_user.id)
+    vacancy.save()
+    bot.send_message(message.chat.id,
+                     f"Для проекта {from_where} создали вакансию с названием "
+                     f"{name_vacancy} и описанием:\n\n{message.text}",
+                     reply_markup=back_to_menu_vacancy)
+    bot.delete_state(message.from_user.id, message.chat.id)
+
+
+@bot.callback_query_handler(lambda callback: callback.data in TEXT.vacancy_read_update_delite,
+                            state=HH.look_all_vacancy)
+def vacancy_read_update_delite(callback):
+    bot.edit_message_reply_markup(chat_id=callback.message.chat.id,
+                                  message_id=callback.message.message_id,
+                                  reply_markup=None)
+    bot.delete_state(callback.from_user.id, callback.message.chat.id)
+    from_where = UserModel.objects.get(user_id=callback.from_user.id).from_where
+    names_vacancy = VacancyModel.objects.filter(user_id__user_id=callback.from_user.id,
+                                                project_name__project_name=from_where)
+    names_vacancy = [name_vacancy.project_name for name_vacancy in names_vacancy]
+    user = UserModel.objects.get(user_id=callback.from_user.id)
+    user.answer = callback.data
+    user.save()
+    if names_vacancy != []:
+        keyboard_vacancy_read = types.InlineKeyboardMarkup()
+        names_vacancy = VacancyModel.objects.filter(user_id__user_id=callback.from_user.id,
+                                                    project_name__project_name=from_where)
+        names_vacancy = [name_vacancy.vacancy_name for name_vacancy in names_vacancy]
+        for name_vacancy in names_vacancy:
+            keyboard_vacancy_read.add(types.InlineKeyboardButton(text=name_vacancy,
+                                                                 callback_data=name_vacancy))
+        keyboard_vacancy_read.add(types.InlineKeyboardButton(text="К выбору проекта для вакансии",
+                                                             callback_data="К выбору проекта для вакансии"))
+        keyboard_vacancy_read.add(types.InlineKeyboardButton(text="Назад, к работе с вакансиями",
+                                                             callback_data="Назад, к работе с вакансиями"))
+        keyboard_vacancy_read.add(types.InlineKeyboardButton(text="К главному меню",
+                                                             callback_data="К главному меню"))
+        bot.send_message(callback.message.chat.id,
+                         "Выберите вакансию:",
+                         reply_markup=keyboard_vacancy_read)
+        bot.set_state(callback.from_user.id, HH.wait_click_on_vacancy_name, callback.message.chat.id)
+    else:
+        bot.send_message(callback.message.chat.id,
+                         "У вас пока нет вакансий в этом проекте",
+                         reply_markup=back_to_menu_vacancy)
+
+
+@bot.callback_query_handler(lambda callback: True, state=HH.wait_click_on_vacancy_name)
+def wait_click_on_vacancy_name(callback: types.CallbackQuery):
+    bot.edit_message_reply_markup(chat_id=callback.message.chat.id,
+                                  message_id=callback.message.message_id,
+                                  reply_markup=None)
+    bot.delete_state(callback.from_user.id, callback.message.chat.id)
+    project_name = UserModel.objects.get(user_id=callback.from_user.id).from_where
+    vacancy_name = str(callback.data)
+    if vacancy_name == 'К главному меню':
+        main_menu(callback)
+    if vacancy_name == 'Назад, к выбору проекта для вакансии':
+        choose_project_for_vacancy(callback)
+    if vacancy_name == "Назад, к работе с вакансиями":
+        base_vacancy(callback)
+    else:
+        from_where = UserModel.objects.get(user_id=callback.from_user.id).answer
+        if from_where == 'Посмотреть свои вакансии':
+            vacancy_description = VacancyModel.objects.get(user_id__user_id=callback.from_user.id,
+                                                           project_name__project_name=project_name,
+                                                           vacancy_name=vacancy_name).vacancy_text
+            bot.send_message(callback.message.chat.id,
+                             f"Описание вашей вакансии {vacancy_name} из проекта "
+                             f"{project_name}:\n\n{vacancy_description}",
+                             reply_markup=back_to_menu_vacancy)
+        elif from_where == 'Удалить вакансию':
+            vacancy = VacancyModel.objects.get(user_id__user_id=callback.from_user.id,
+                                               project_name__project_name=project_name,
+                                               vacancy_name=vacancy_name)
+            vacancy.delete()
+            bot.send_message(callback.message.chat.id,
+                             f"Ваша вакансия удалена",
+                             reply_markup=back_to_menu_vacancy)
+        elif from_where == 'Редактировать вакансию':
+            user = UserModel.objects.get(user_id=callback.from_user.id)
+            user.answer = vacancy_name
+            user.save()
+            vacancy = VacancyModel.objects.get(user_id__user_id=callback.from_user.id,
+                                               project_name__project_name=project_name,
+                                               vacancy_name=vacancy_name)
+            vacancy.delete()
+            bot.send_message(callback.message.chat.id,
+                             f"Введите новое описание вашей вакансии {vacancy_name}")
+            bot.set_state(callback.from_user.id, HH.wait_description_vacancy, callback.message.chat.id)
