@@ -6,6 +6,19 @@ from .texts import *
 hideBoard = types.ReplyKeyboardRemove()
 
 
+@bot.callback_query_handler(lambda callback: callback.data in 'Об авторах')
+def about_avtors(callback):
+    bot.edit_message_reply_markup(chat_id=callback.message.chat.id,
+                                  message_id=callback.message.message_id,
+                                  reply_markup=None)
+    bot.delete_state(callback.from_user.id, callback.message.chat.id)
+    bot.send_message(callback.message.chat.id,
+                     "Привет!\nЕсли вы зашли сюда, значит вам действительно понравился мой бот)"
+                     "\nЕго разработчиком является Новиков Артур, студент 2-го курса ВШЭ. "
+                     "Если вы хотите такого же бота (можно сложнее), то пишите на почту artur.novikov.my@gmail.com",
+                     reply_markup=back_to_menu_total)
+
+
 @bot.callback_query_handler(lambda callback: callback.data in TEXT.main_menu)
 def main_menu(callback):
     bot.edit_message_reply_markup(chat_id=callback.message.chat.id,
@@ -154,6 +167,11 @@ def smth_read_update_delite(callback):
                                                                 callback_data=name_cv))
             keyboard_cv_read.add(types.InlineKeyboardButton(text="Назад, к работе с резюме",
                                                             callback_data="Назад, к работе с резюме"))
+            keyboard_cv_read.add(types.InlineKeyboardButton(text="К главному меню",
+                                                            callback_data="К главному меню"))
+            bot.send_message(callback.message.chat.id,
+                             "Выберите резюме:",
+                             reply_markup=keyboard_cv_read)
         elif from_where in TEXT.project_read_update_delite:
             names_project = ProjectModel.objects.filter(user_id__user_id=callback.from_user.id)
             names_project_name = [name_project.project_name for name_project in names_project]
@@ -162,11 +180,11 @@ def smth_read_update_delite(callback):
                                                                 callback_data=name_project))
             keyboard_cv_read.add(types.InlineKeyboardButton(text="Назад, к работе с проектами",
                                                             callback_data="Назад, к работе с проектами"))
-        keyboard_cv_read.add(types.InlineKeyboardButton(text="К главному меню",
-                                                        callback_data="К главному меню"))
-        bot.send_message(callback.message.chat.id,
-                         "Выберите резюме:",
-                         reply_markup=keyboard_cv_read)
+            keyboard_cv_read.add(types.InlineKeyboardButton(text="К главному меню",
+                                                            callback_data="К главному меню"))
+            bot.send_message(callback.message.chat.id,
+                             "Выберите проект:",
+                             reply_markup=keyboard_cv_read)
         bot.set_state(callback.from_user.id, HH.wait_click_on_smth_name, callback.message.chat.id)
     else:
         if from_where in TEXT.cv_read_update_delite:
@@ -198,6 +216,12 @@ def wait_click_on_smth_name(callback: types.CallbackQuery):
             bot.send_message(callback.message.chat.id,
                              f"Ваше резюме по вакансии {answer}:\n\n{cv_description}",
                              reply_markup=back_to_menu_cv)
+        elif from_where == 'Посмотреть свои проекты':
+            project_description = ProjectModel.objects.get(user_id__user_id=callback.from_user.id,
+                                                           project_name=answer).project_text
+            bot.send_message(callback.message.chat.id,
+                             f"Описание вашего проекта {answer}:\n\n{project_description}",
+                             reply_markup=back_to_menu_project)
         elif from_where == 'Удалить резюме':
             cv = CvModel.objects.get(user_id__user_id=callback.from_user.id,
                                      cv_name=answer)
@@ -205,7 +229,14 @@ def wait_click_on_smth_name(callback: types.CallbackQuery):
             bot.send_message(callback.message.chat.id,
                              f"Ваше резюме удалено",
                              reply_markup=back_to_menu_cv)
-        else:
+        elif from_where == 'Удалить проект':
+            project = ProjectModel.objects.get(user_id__user_id=callback.from_user.id,
+                                               project_name=answer)
+            project.delete()
+            bot.send_message(callback.message.chat.id,
+                             f"Ваше проект удален",
+                             reply_markup=back_to_menu_project)
+        elif from_where == 'Редактировать резюме':
             user = UserModel.objects.get(user_id=callback.from_user.id)
             user.answer = answer
             user.save()
@@ -216,4 +247,16 @@ def wait_click_on_smth_name(callback: types.CallbackQuery):
             user.save()
             bot.send_message(callback.message.chat.id,
                              f"Введите новый текст для вашего резюме {answer}")
+            bot.set_state(callback.from_user.id, HH.wait_description_smth, callback.message.chat.id)
+        elif from_where == 'Редактировать проект':
+            user = UserModel.objects.get(user_id=callback.from_user.id)
+            user.answer = answer
+            user.save()
+            project = ProjectModel.objects.get(user_id__user_id=callback.from_user.id)
+            project.delete()
+            user = UserModel.objects.get(user_id=callback.from_user.id)
+            user.from_where = 'Добавить проект'
+            user.save()
+            bot.send_message(callback.message.chat.id,
+                             f"Введите новое описание вашего проекта {answer}")
             bot.set_state(callback.from_user.id, HH.wait_description_smth, callback.message.chat.id)
