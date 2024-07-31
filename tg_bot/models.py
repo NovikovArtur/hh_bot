@@ -13,6 +13,8 @@ class UserModel(TimeStampedMixin):
     user_id = models.CharField(max_length=255, unique=True, verbose_name="ID пользователя")
     username = models.CharField(max_length=32, blank=True, null=True, verbose_name="Username пользователя")
     answer = models.CharField(blank=True, null=True, verbose_name="Переменная для хранения ответа пользователя")
+    from_where = models.CharField(blank=True, null=True, verbose_name="Откуда пришел пользователь")
+
 
     class Meta:
         verbose_name = "Пользователь"

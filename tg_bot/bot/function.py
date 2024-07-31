@@ -1,5 +1,6 @@
 from telebot import types
 from ..models import *
+from .texts import *
 
 
 def main_menu_keyboard(callback):
@@ -19,9 +20,18 @@ def main_menu_keyboard(callback):
     return keyboard_main_menu
 
 
-def cv_bull(callback):
-    try:
-        CvModel.objects.filter(user_id__user_id=callback.from_user.id)
-        return 1
-    except:
-        return 0
+def smth_bull(callback, from_where):
+    if from_where in TEXT.cv_read_update_delite:
+        cvs = CvModel.objects.filter(user_id__user_id=callback.from_user.id)
+        cvs_name = [cv.cv_name for cv in cvs]
+        if cvs_name != []:
+            return 1
+        else:
+            return 0
+    elif from_where in TEXT.project_read_update_delite:
+        projects = ProjectModel.objects.filter(user_id__user_id=callback.from_user.id)
+        projects_name = [project.project_name for project in projects]
+        if projects_name != []:
+            return 1
+        else:
+            return 0
