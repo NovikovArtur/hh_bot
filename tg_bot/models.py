@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import Min
 
 
 class TimeStampedMixin(models.Model):
@@ -12,8 +13,10 @@ class TimeStampedMixin(models.Model):
 class UserModel(TimeStampedMixin):
     user_id = models.CharField(max_length=255, unique=True, verbose_name="ID пользователя")
     username = models.CharField(max_length=32, blank=True, null=True, verbose_name="Username пользователя")
+    chat_id = models.CharField(blank=True, null=True, verbose_name="Chat id пользователя")
     answer = models.CharField(blank=True, null=True, verbose_name="Переменная для хранения ответа пользователя")
     from_where = models.CharField(blank=True, null=True, verbose_name="Откуда пришел пользователь")
+    last_viewed_job_id = models.IntegerField(default=0)
 
 
     class Meta:
@@ -21,10 +24,7 @@ class UserModel(TimeStampedMixin):
         verbose_name_plural = "Пользователи"
 
     def __str__(self):
-        try:
-            return f"{self.user_id} --> {self.username[:10]}"
-        except:
-            return f"{self.user_id}"
+        return f"{self.user_id}"
 
 
 class CvModel(TimeStampedMixin):

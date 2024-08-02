@@ -12,6 +12,7 @@ def command_start(message):
         user = UserModel()
         user.user_id = message.from_user.id
         user.username = message.from_user.username
+        user.chat_id = message.chat.id
         user.save()
     if message.chat.id < 0:
         bot.send_message(message.chat.id,
@@ -21,5 +22,7 @@ def command_start(message):
     else:
         bot.send_message(message.chat.id,
                          "Привет!\nЯ помогу тебе найти сотрудника в твой проект. Ну или найти тебе работу.\n"
-                         "Скорее нажимай на кнопку 'полетели', и я тебе все расскажу",
+                         "Скорее нажимай на кнопку 'полетели', и я тебе все расскажу\n\n\nВ данный момент бот находится"
+                         " в разработке, поэтому не весь функционал еще работает как надо. Если у вас есть какие-то "
+                         "пожелания или комментарии по работе бота - обращайтесь по почте artur.novikov.my@gmail.com",
                          reply_markup=keyboard_start)

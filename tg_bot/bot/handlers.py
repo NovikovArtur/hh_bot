@@ -1,3 +1,4 @@
+from django.db.models import Min, Max
 from .commands import *
 from .function import *
 from .states import *
@@ -449,3 +450,115 @@ def wait_click_on_vacancy_name(callback: types.CallbackQuery):
             bot.send_message(callback.message.chat.id,
                              f"Введите новое описание вашей вакансии {vacancy_name}")
             bot.set_state(callback.from_user.id, HH.wait_description_vacancy, callback.message.chat.id)
+
+
+@bot.callback_query_handler(lambda callback: callback.data in TEXT.search_vacancy)
+def search_vacancy(callback):
+    bot.delete_state(callback.from_user.id, callback.message.chat.id)
+    answer = UserModel.objects.get(user_id=callback.from_user.id).answer
+    if callback.data == '>' and answer != 'Поиск вакансий':
+        last_viewed_job_id = UserModel.objects.get(user_id=callback.from_user.id).last_viewed_job_id
+        next_job = VacancyModel.objects.filter(id__gt=last_viewed_job_id).order_by('id').first()
+        next_job_id = next_job.id if next_job else VacancyModel.objects.aggregate(Min('id'))['id__min']
+        user = UserModel.objects.get(user_id=callback.from_user.id)
+        user.last_viewed_job_id = next_job_id
+        user.answer = 'Поиск вакансий'
+        user.save()
+        search_vacancy(callback)
+    elif callback.data == '<' and answer != 'Поиск вакансий':
+        last_viewed_job_id = UserModel.objects.get(user_id=callback.from_user.id).last_viewed_job_id
+        prev_job = VacancyModel.objects.filter(id__lt=last_viewed_job_id).order_by('-id').first()
+        prev_job_id = prev_job.id if prev_job else VacancyModel.objects.aggregate(Max('id'))['id__max']
+        user = UserModel.objects.get(user_id=callback.from_user.id)
+        user.last_viewed_job_id = prev_job_id
+        user.answer = 'Поиск вакансий'
+        user.save()
+        search_vacancy(callback)
+    elif callback.data == 'Поиск вакансий' or 'К поиску вакансий' or answer == 'Поиск вакансий':
+        bot.edit_message_reply_markup(chat_id=callback.message.chat.id,
+                                      message_id=callback.message.message_id,
+                                      reply_markup=None)
+        try:
+            last_viewed_job_id = UserModel.objects.get(user_id=callback.from_user.id).last_viewed_job_id
+            vacancy_name = VacancyModel.objects.get(id=last_viewed_job_id).vacancy_name
+        except VacancyModel.DoesNotExist:
+            last_viewed_job_id = VacancyModel.objects.aggregate(Min('id'))
+            last_viewed_job_id = last_viewed_job_id['id__min']
+        vacancy_name = VacancyModel.objects.get(id=last_viewed_job_id).vacancy_name
+        vacancy_text = VacancyModel.objects.get(id=last_viewed_job_id).vacancy_text
+        project_name = ProjectModel.objects.get(project_name=VacancyModel.objects.get(
+            id=last_viewed_job_id).project_name).project_name
+        project_text = ProjectModel.objects.get(project_name=VacancyModel.objects.get(
+            id=last_viewed_job_id).project_name).project_text
+        bot.send_message(callback.message.chat.id,
+                         f"Название проекта:\n{project_name}\nОписание проекта:\n{project_text}\n\n"
+                         f"Название вакансии:\n{vacancy_name}\nОписание вакансии:\n{vacancy_text}",
+                         reply_markup=keyboard_look_vacancy)
+        user = UserModel.objects.get(user_id=callback.from_user.id)
+        user.last_viewed_job_id = last_viewed_job_id
+        user.answer = ''
+        user.save()
+
+
+@bot.callback_query_handler(lambda callback: callback.data in TEXT.send_cv)
+def send_cv(callback):
+    bot.edit_message_reply_markup(chat_id=callback.message.chat.id,
+                                  message_id=callback.message.message_id,
+                                  reply_markup=None)
+    bot.delete_state(callback.from_user.id, callback.message.chat.id)
+    from_where = 'Посмотреть свои резюме'
+    bull = smth_bull(callback, from_where)
+    if bull:
+        keyboard_cv_read = types.InlineKeyboardMarkup()
+        names_cv = CvModel.objects.filter(user_id__user_id=callback.from_user.id)
+        names_cv_name = [name_cv.cv_name for name_cv in names_cv]
+        for name_cv in names_cv_name:
+            keyboard_cv_read.add(types.InlineKeyboardButton(text=name_cv,
+                                                            callback_data=name_cv))
+        keyboard_cv_read.add(types.InlineKeyboardButton(text="К поиску вакансий",
+                                                        callback_data="К поиску вакансий"))
+        keyboard_cv_read.add(types.InlineKeyboardButton(text="К главному меню",
+                                                        callback_data="К главному меню"))
+        bot.send_message(callback.message.chat.id,
+                         "Выберите резюме для отклика:",
+                         reply_markup=keyboard_cv_read)
+        bot.set_state(callback.from_user.id, HH.choose_vacancy, callback.message.chat.id)
+    else:
+        bot.send_message(callback.message.chat.id,
+                         "У вас пока нет резюме",
+                         reply_markup=back_to_menu_total)
+
+
+@bot.callback_query_handler(lambda callback: True, state=HH.choose_vacancy)
+def choose_vacancy(callback):
+    bot.edit_message_reply_markup(chat_id=callback.message.chat.id,
+                                  message_id=callback.message.message_id,
+                                  reply_markup=None)
+    bot.delete_state(callback.from_user.id, callback.message.chat.id)
+    vacancy_id = UserModel.objects.get(user_id=callback.from_user.id).last_viewed_job_id
+    vacancy_name = VacancyModel.objects.get(id=vacancy_id).vacancy_name
+    cv_id = CvModel.objects.get(user_id__user_id=callback.from_user.id,
+                                cv_name=callback.data).id
+    cv_name = CvModel.objects.get(user_id__user_id=callback.from_user.id,
+                                  cv_name=callback.data).cv_name
+    cv_text = CvModel.objects.get(user_id__user_id=callback.from_user.id,
+                                  cv_name=callback.data).cv_text
+    project_name = VacancyModel.objects.get(id=vacancy_id).project_name
+    work_id = ProjectModel.objects.get(project_name=project_name).user_id
+    work_chat_id = UserModel.objects.get(user_id=work_id).chat_id
+    bot.send_message(callback.message.chat.id,
+                     f"Отправили ваш отклик на вакансию {vacancy_name} в проект {project_name}.\n\n"
+                     f"Вы отправили работодателю резюме {cv_name}",
+                     reply_markup=back_to_menu_total)
+    if callback.from_user.username is not None:
+        bot.send_message(work_chat_id,
+                         f"Вам пришел отклик на вакансию {vacancy_name} от пользователя "
+                         f"@{callback.from_user.username}.\n\n"
+                         f"Описание резюме:\n{cv_text}",
+                         reply_markup=back_to_menu_total)
+    else:
+        bot.send_message(work_chat_id,
+                         f"Вам пришел отклик на вакансию {vacancy_name} от пользователя "
+                         f"{callback.from_user.id}.\n\n"
+                         f"Описание резюме:\n{cv_text}",
+                         reply_markup=back_to_menu_total)

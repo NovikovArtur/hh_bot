@@ -15,6 +15,12 @@ def main_menu_keyboard(callback):
         ProjectModel.objects.filter(user_id__user_id=callback.from_user.id)
         keyboard_main_menu.add(types.InlineKeyboardButton(text="Добавить вакансии в проект",
                                                           callback_data="Добавить вакансии в проект"))
+    cvs = CvModel.objects.filter(user_id__user_id=callback.from_user.id)
+    cvs_text = [cv.cv_name for cv in cvs]
+    if cvs_text != []:
+        CvModel.objects.filter(user_id__user_id=callback.from_user.id)
+        keyboard_main_menu.add(types.InlineKeyboardButton(text="Поиск вакансий",
+                                                          callback_data="Поиск вакансий"))
     keyboard_main_menu.add(types.InlineKeyboardButton(text="Об авторах",
                                                       callback_data="Об авторах"))
     return keyboard_main_menu

@@ -11,3 +11,4 @@ class HH(StatesGroup):
     wait_description_vacancy = State()
     look_all_vacancy = State()
     wait_click_on_vacancy_name = State()
+    choose_vacancy = State()

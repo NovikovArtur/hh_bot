@@ -72,3 +72,15 @@ keyboard_work_with_vacancy.add(types.InlineKeyboardButton(text="Посмотре
                                                           callback_data="Посмотреть свои вакансии"))
 keyboard_work_with_vacancy.add(types.InlineKeyboardButton(text="К главному меню",
                                                           callback_data="К главному меню"))
+
+
+keyboard_look_vacancy = types.InlineKeyboardMarkup()
+keyboard_look_vacancy.add(types.InlineKeyboardButton(text="Откликнуться",
+                                                          callback_data="Откликнуться"))
+btn1 = types.InlineKeyboardButton("<<<",
+                                  callback_data="<")
+btn2 = types.InlineKeyboardButton(">>>",
+                                  callback_data=">")
+keyboard_look_vacancy.row(btn1, btn2)
+keyboard_look_vacancy.add(types.InlineKeyboardButton(text="К главному меню",
+                                                          callback_data="К главному меню"))
